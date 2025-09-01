@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Editar Producto</h2>
+<form method="post">
+  <div class="mb-2"><input class="form-control" name="name" value="{{ p.name }}"></div>
+  <button class="btn btn-primary">Guardar</button>
+</form>
+{% endblock %}

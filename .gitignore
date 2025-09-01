@@ -1,0 +1,6 @@
+stock_logs.xlsx
+orders.xlsx
+products.xlsx
+venv/pyvenv.cfg
+venv
+__pycache__
