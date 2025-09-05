@@ -1,141 +1,181 @@
+
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-from werkzeug.security import check_password_hash
+from openpyxl import Workbook, load_workbook
 from datetime import datetime
-import excel_utils as utils
+import os, json
 
 app = Flask(__name__)
-app.secret_key = 'cambia_esto_por_una_clave_secreta'
+app.secret_key = 'dev-secret'  # simple for prototype
 
-utils.ensure_files()
+PRODUCTS_FILE = 'products.xlsx'
+ORDERS_FILE = 'orders.xlsx'
 
-def login_required(f):
-    from functools import wraps
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('user_id'):
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated
+def ensure_files():
+    if not os.path.exists(PRODUCTS_FILE): 
+        wb = Workbook(); ws = wb.active; ws.title = 'products' 
+        ws.append(['id','name','model','color','size','price','stock','created_at']); wb.save(PRODUCTS_FILE)
+    if not os.path.exists(ORDERS_FILE):
+        wb = Workbook(); ws = wb.active; ws.title = 'orders'
+        ws.append(['id','customer_name','address','phone','items_json','total_price','created_at']); wb.save(ORDERS_FILE)
 
-def admin_required(f):
-    from functools import wraps
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('user_id') or not session.get('is_admin'):
-            flash('Se requiere acceso de administrador')
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated
+def next_id(path, sheet):
+    wb = load_workbook(path); ws = wb[sheet]
+    max_id = 0
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if row and row[0]:
+            try:
+                v = int(row[0])
+                if v > max_id: max_id = v
+            except: pass
+    wb.close(); return max_id + 1
 
-@app.route('/')
-@login_required
-def index():
-    products = utils.load_products()
-    return render_template('index.html', products=products)
+def load_products():
+    wb = load_workbook(PRODUCTS_FILE); ws = wb['products']; products = []
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not any(row): continue
+        products.append({'id':int(row[0]), 'name':row[1], 'model':row[2], 'color':row[3], 'size':row[4], 'price':float(row[5] or 0), 'stock':int(row[6] or 0), 'created_at':row[7]})
+    wb.close(); return products
+
+def save_product(prod):
+    wb = load_workbook(PRODUCTS_FILE); ws = wb['products']; found=False
+    for r in ws.iter_rows(min_row=2):
+        if r[0].value == prod.get('id'):
+            r[1].value = prod.get('name'); r[2].value = prod.get('model'); r[3].value = prod.get('color')
+            r[4].value = prod.get('size'); r[5].value = prod.get('price'); r[6].value = prod.get('stock'); r[7].value = prod.get('created_at')
+            found = True; break
+    if not found:
+        nid = prod.get('id') or next_id(PRODUCTS_FILE, 'products'); ws.append([nid, prod.get('name'), prod.get('model'), prod.get('color'), prod.get('size'), prod.get('price'), prod.get('stock'), prod.get('created_at')])
+    wb.save(PRODUCTS_FILE); wb.close()
+
+def delete_product(pid):
+    wb = load_workbook(PRODUCTS_FILE); ws = wb['products']; row_to_delete=None
+    for idx, r in enumerate(ws.iter_rows(min_row=2), start=2):
+        if r[0].value == pid: row_to_delete = idx; break
+    if row_to_delete: ws.delete_rows(row_to_delete)
+    wb.save(PRODUCTS_FILE); wb.close()
+
+def append_order(order):
+    wb = load_workbook(ORDERS_FILE); ws = wb['orders']; nid = next_id(ORDERS_FILE, 'orders')
+    ws.append([nid, order.get('customer_name'), order.get('address'), order.get('phone'), order.get('items_json'), order.get('total_price'), order.get('created_at')])
+    wb.save(ORDERS_FILE); wb.close()
+
+
+def delete_order(oid):
+    wb = load_workbook(ORDERS_FILE)
+    ws = wb['orders']
+    row_to_delete = None
+    for idx, r in enumerate(ws.iter_rows(min_row=2), start=2):
+        if r[0].value == oid:
+            row_to_delete = idx
+            break
+    if row_to_delete:
+        ws.delete_rows(row_to_delete)
+    wb.save(ORDERS_FILE)
+    wb.close()
+
+def load_orders():
+    wb = load_workbook(ORDERS_FILE); ws = wb['orders']; orders=[]
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not any(row): continue
+        orders.append({'id':row[0], 'customer_name':row[1], 'address':row[2], 'phone':row[3], 'items':json.loads(row[4] or '[]'), 'total_price':float(row[5] or 0), 'created_at':row[6]})
+    wb.close(); return orders
+
+def is_logged_in():
+    return session.get('logged_in', False)
 
 @app.route('/login', methods=['GET','POST'])
 def login():
-    if session.get('user_id'):
-        return redirect(url_for('index'))
+    # if logged in go to products
+    if is_logged_in(): return redirect(url_for('products'))
+    error = None
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        users = utils.load_users()
-        user = next((u for u in users if u['username'] == username), None)
-        if user and check_password_hash(user['password_hash'], password):
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['is_admin'] = bool(user.get('is_admin'))
-            flash('Bienvenido!')
-            return redirect(url_for('index'))
+        u = request.form.get('username'); p = request.form.get('password')
+        if u == 'admin' and p == 'admin':
+            session['logged_in'] = True
+            return redirect(url_for('products'))
         else:
-            flash('Credenciales inválidas')
-    return render_template('login.html')
+            error = 'Credenciales inválidas (usa admin / admin)'
+    return render_template('login.html', error=error)
 
 @app.route('/logout')
 def logout():
-    session.clear()
-    return redirect(url_for('login'))
+    session.clear(); return redirect(url_for('login'))
 
-@app.route('/admin')
-@admin_required
-def admin():
-    logs = utils.load_logs(200); products = utils.load_products()
-    prod_map = {p['id']: p['name'] for p in products}; enriched_logs=[]
-    for l in logs: enriched_logs.append({'id':l['id'],'product_name':prod_map.get(l['product_id'],'—'),'change_amount':l['change_amount'],'reason':l['reason'],'username':l['username'],'timestamp':l['timestamp']})
-    orders = utils.load_orders(100)
-    return render_template('admin.html', logs=enriched_logs, orders=orders)
+@app.route('/')
+def root():
+    if not is_logged_in(): return redirect(url_for('login'))
+    return redirect(url_for('products'))
 
-@app.route('/create_product', methods=['POST'])
-@admin_required
-def create_product():
-    name = request.form.get('name'); category = request.form.get('category'); model = request.form.get('model')
-    color = request.form.get('color'); size = request.form.get('size')
-    try: price = float(request.form.get('price') or 0)
-    except: price = 0.0
-    try: stock = int(request.form.get('stock') or 0)
-    except: stock = 0
-    created_at = datetime.utcnow().isoformat(); pid = utils._next_id_from_sheet(utils.PRODUCTS_XLSX,'products')
-    product = {'id':pid,'name':name,'category':category,'model':model,'color':color,'size':size,'price':price,'stock':stock,'created_at':created_at}
-    utils.save_product_row(product); utils.append_log(pid, stock, 'stock inicial', session.get('username')); flash('Producto creado')
-    return redirect(url_for('admin'))
+@app.route('/products')
+def products():
+    if not is_logged_in(): return redirect(url_for('login'))
+    products = load_products()
+    return render_template('products.html', products=products)
 
-@app.route('/edit_product/<int:product_id>', methods=['GET','POST'])
-@admin_required
-def edit_product(product_id):
-    products = utils.load_products(); p = next((x for x in products if x['id']==product_id), None)
-    if not p: flash('Producto no encontrado'); return redirect(url_for('index'))
+@app.route('/product/new', methods=['GET','POST'])
+def product_new():
+    if not is_logged_in(): return redirect(url_for('login'))
     if request.method == 'POST':
-        p['name'] = request.form.get('name'); p['category'] = request.form.get('category'); p['model'] = request.form.get('model')
-        p['color'] = request.form.get('color'); p['size'] = request.form.get('size')
-        try: p['price'] = float(request.form.get('price') or 0)
-        except: p['price'] = 0
-        try: p['stock'] = int(request.form.get('stock') or 0)
-        except: p['stock'] = 0
-        utils.save_product_row(p); flash('Producto actualizado'); return redirect(url_for('index'))
-    return render_template('edit_product.html', p=p)
+        name = request.form.get('name'); model = request.form.get('model'); color = request.form.get('color')
+        size = request.form.get('size'); price = float(request.form.get('price') or 0); stock = int(request.form.get('stock') or 0)
+        prod = {'name': name, 'model': model, 'color': color, 'size': size, 'price': price, 'stock': stock, 'created_at': datetime.utcnow().isoformat()}
+        save_product(prod); return redirect(url_for('products'))
+    return render_template('product_form.html', product=None)
 
-@app.route('/delete_product/<int:product_id>', methods=['POST'])
-@admin_required
-def delete_product(product_id):
-    utils.delete_product_by_id(product_id); flash('Producto eliminado'); return redirect(url_for('index'))
-
-@app.route('/adjust_stock/<int:product_id>', methods=['POST'])
-@admin_required
-def adjust_stock(product_id):
-    try: change = int(request.form.get('change') or 0)
-    except: change = 0
-    reason = request.form.get('reason') or ''
-    products = utils.load_products(); p = next((x for x in products if x['id']==product_id), None)
-    if not p: flash('Producto no existe'); return redirect(url_for('index'))
-    p['stock'] = p['stock'] + change; utils.save_product_row(p); utils.append_log(product_id, change, reason, session.get('username')); flash('Stock ajustado')
-    return redirect(url_for('index'))
-
-@app.route('/create_order', methods=['GET','POST'])
-@login_required
-def create_order():
-    products = utils.load_products()
+@app.route('/product/edit/<int:pid>', methods=['GET','POST'])
+def product_edit(pid):
+    if not is_logged_in(): return redirect(url_for('login'))
+    products = load_products(); p = next((x for x in products if x['id']==pid), None)
+    if not p: flash('Producto no encontrado'); return redirect(url_for('products'))
     if request.method == 'POST':
-        product_ids = request.form.getlist('product_id'); qtys = request.form.getlist('qty'); notes = request.form.getlist('note')
-        items = []; total = 0.0; prod_map = {p['id']:p for p in products}
-        for i,pid_raw in enumerate(product_ids):
-            if not pid_raw: continue
-            pid = int(pid_raw); qty = int(qtys[i] or 1); prod = prod_map.get(pid)
-            if not prod: flash('Producto no encontrado'); return redirect(url_for('create_order'))
-            if prod['stock'] < qty: flash(f'Stock insuficiente para {prod["name"]}'); return redirect(url_for('create_order'))
-        for i,pid_raw in enumerate(product_ids):
-            if not pid_raw: continue
-            pid = int(pid_raw); qty = int(qtys[i] or 1); note = notes[i] if notes and i < len(notes) else ''
-            prod = prod_map.get(pid); prod['stock'] -= qty; utils.save_product_row(prod); utils.append_log(pid, -qty, 'venta/pedido', session.get('username'))
-            items.append({'id':pid,'name':prod['name'],'qty':qty,'price':prod['price'],'size':prod['size'],'color':prod['color'],'note':note}); total += prod['price'] * qty
-        order = {'customer_name':request.form.get('customer_name'),'address':request.form.get('address'),'city':request.form.get('city'),'phone':request.form.get('phone'),'items':items,'total_price':total,'created_at':datetime.utcnow().isoformat()}
-        utils.append_order(order); flash('Pedido registrado'); return redirect(url_for('orders'))
-    return render_template('create_order.html', products=products)
+        p['name'] = request.form.get('name'); p['model'] = request.form.get('model'); p['color'] = request.form.get('color')
+        p['size'] = request.form.get('size'); p['price'] = float(request.form.get('price') or 0); p['stock'] = int(request.form.get('stock') or 0)
+        save_product(p); return redirect(url_for('products'))
+    return render_template('product_form.html', product=p)
+
+@app.route('/product/delete/<int:pid>', methods=['POST'])
+def product_delete(pid):
+    if not is_logged_in(): return redirect(url_for('login'))
+    delete_product(pid); return redirect(url_for('products'))
 
 @app.route('/orders')
-@login_required
 def orders():
-    orders = utils.load_orders(200); return render_template('orders.html', orders=orders)
+    if not is_logged_in(): return redirect(url_for('login'))
+    orders = load_orders(); return render_template('orders.html', orders=orders)
+
+@app.route('/order/new', methods=['GET','POST'])
+def order_new():
+    if not is_logged_in(): return redirect(url_for('login'))
+    products = load_products()
+    if request.method == 'POST':
+        customer_name = request.form.get('customer_name'); address = request.form.get('address'); phone = request.form.get('phone')
+        ids = request.form.getlist('product_id'); qtys = request.form.getlist('qty')
+        items = []; total = 0.0; prod_map = {p['id']:p for p in products}
+        for i,pid_raw in enumerate(ids):
+            if not pid_raw: continue
+            pid = int(pid_raw); qty = int(qtys[i] or 1)
+            prod = prod_map.get(pid)
+            if not prod: continue
+            if prod['stock'] < qty:
+                flash(f'Stock insuficiente para {prod["name"]}'); return redirect(url_for('order_new'))
+        for i,pid_raw in enumerate(ids):
+            if not pid_raw: continue
+            pid = int(pid_raw); qty = int(qtys[i] or 1)
+            prod = prod_map.get(pid); prod['stock'] -= qty; save_product(prod)
+            items.append({'id':pid,'name':prod['name'],'qty':qty,'price':prod['price'],'size': prod.get('size'), 'color': prod.get('color')}); total += prod['price'] * qty
+        order = {'customer_name':customer_name,'address':address,'phone':phone,'items_json':json.dumps(items),'total_price':total,'created_at':datetime.utcnow().isoformat()}
+        append_order(order); return redirect(url_for('orders'))
+    return render_template('order_form.html', products=products)
+
+
+
+@app.route('/order/delete/<int:oid>', methods=['POST'])
+def order_delete(oid):
+    if not is_logged_in():
+        return redirect(url_for('login'))
+    delete_order(oid)
+    flash('Pedido marcado como completado y eliminado')
+    return redirect(url_for('orders'))
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    ensure_files(); app.run(debug=True)

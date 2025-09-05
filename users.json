@@ -1,1 +1,0 @@
-{"users": [{"id": 1, "username": "admin", "password_hash": "scrypt:32768:8:1$51N74q0ejfSEuXjW$326e53fb6b4cc6c0d4807796598cf180921ef22ce1662a7b6213cd28a8864e10e2b84a076d886c7aa720bdc82ccb9c1582b07f471e6903b2ed3f865cbafc79f3", "is_admin": true}]}

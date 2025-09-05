@@ -1,5 +1,32 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% block content %}
-<h2>Pedidos</h2>
-<p>Listado de pedidos</p>
+<h2 class="text-xl font-semibold mb-4">Pedidos</h2>
+<table class="min-w-full bg-white shadow rounded overflow-hidden">
+  <thead class="bg-gray-100 text-left">
+    <tr><th class="px-4 py-2">ID</th><th class="px-4 py-2">Cliente</th><th class="px-4 py-2">Items</th><th class="px-4 py-2">Total</th><th class="px-4 py-2">Fecha</th></tr>
+  </thead>
+  
+<tbody>
+  {% for o in orders %}
+    <tr class="border-t">
+      <td class="px-4 py-2">{{ o.id }}</td>
+      <td class="px-4 py-2">{{ o.customer_name }}<br>{{ o.address }}<br>{{ o.phone }}</td>
+      <td class="px-4 py-2">
+        {% for it in o['items'] %}
+          <div class="text-sm">- {{ it.name }} x{{ it.qty }} {% if it.size %} (Talla: {{ it.size }}){% endif %}{% if it.color %} (Color: {{ it.color }}){% endif %} - {{ '%.2f'|format(it.price) }}</div>
+        {% endfor %}
+      </td>
+      <td class="px-4 py-2">{{ '%.2f'|format(o.total_price) }}</td>
+      <td class="px-4 py-2">{{ o.created_at }}</td>
+      <td class="px-4 py-2">
+        <form method="post" action="{{ url_for('order_delete', oid=o.id) }}" onsubmit="return confirm('Marcar pedido {{ o.id }} como completado y eliminar?')">
+          <button class="px-2 py-1 bg-green-600 text-white rounded text-sm">Marcar completado</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+</tbody>
+
+</table>
+<a class="inline-block mt-4 text-sm text-cyan-600" href="{{ url_for('products') }}">Volver</a>
 {% endblock %}
