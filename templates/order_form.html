@@ -13,9 +13,9 @@
       <input class="w-24 rounded border px-3 py-2" name="qty" type="number" value="1" min="1">
     </div>
   </div>
-  <button type="button" id="add" class="px-3 py-2 bg-gray-100 rounded">Agregar otro</button>
+  <button type="button" id="add" class="px-3 py-2 bg-gray-100 rounded hover:scale-105 cursor-pointer">Agregar otro</button>
 
-  <div class="flex space-x-2"><button class="px-4 py-2 bg-cyan-500 text-white rounded">Registrar pedido</button><a class="px-4 py-2 border rounded" href="{{ url_for('products') }}">Cancelar</a></div>
+  <div class="flex space-x-2"><button class="px-4 py-2 bg-cyan-500 text-white rounded hover:scale-105 cursor-pointer">Registrar pedido</button><a class="px-4 py-2 border rounded hover:scale-105" href="{{ url_for('products') }}">Cancelar</a></div>
 </form>
 
 <script>

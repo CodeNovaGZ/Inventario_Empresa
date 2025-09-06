@@ -3,9 +3,9 @@
 <div class="flex justify-between items-center mb-6">
   <h1 class="text-2xl font-bold">Productos</h1>
   <div class="space-x-2">
-    <a class="px-3 py-2 bg-cyan-500 text-white rounded" href="{{ url_for('product_new') }}">Nuevo producto</a>
-    <a class="px-3 py-2 bg-white border rounded" href="{{ url_for('order_new') }}">Crear pedido</a>
-    <a class="px-3 py-2 text-sm" href="{{ url_for('orders') }}">Ver pedidos</a>
+    <a class="px-3 py-2 bg-cyan-500 text-white rounded inline-block hover:scale-105" href="{{ url_for('product_new') }}">Nuevo producto</a>
+    <a class="px-3 py-2 bg-cyan-500 text-white rounded inline-block hover:scale-105" href="{{ url_for('order_new') }}">Crear pedido</a>
+    <a class="px-3 py-2 bg-cyan-500 text-white rounded inline-block hover:scale-105" href="{{ url_for('orders') }}">Ver pedidos</a>
   </div>
 </div>
 <table class="min-w-full bg-white shadow rounded overflow-hidden">
@@ -20,9 +20,9 @@
         <td class="px-4 py-2">{{ p.id }}</td><td class="px-4 py-2">{{ p.name }}</td><td class="px-4 py-2">{{ p.model }}</td><td class="px-4 py-2">{{ p.color }}</td><td class="px-4 py-2">{{ p.size }}</td>
         <td class="px-4 py-2">{{ '%.2f'|format(p.price) }}</td><td class="px-4 py-2">{{ p.stock }}</td>
         <td class="px-4 py-2">
-          <a class="px-2 py-1 bg-blue-500 text-white rounded text-sm" href="{{ url_for('product_edit', pid=p.id) }}">Editar</a>
-          <form method="post" action="{{ url_for('product_delete', pid=p.id) }}" style="display:inline" onsubmit="return confirm('Eliminar?')">
-            <button class="px-2 py-1 bg-red-500 text-white rounded text-sm">Eliminar</button>
+          <a class="px-2 py-1 bg-blue-500 text-white rounded text-sm hover:scale-105 cursor-pointer transition-colors transition-transform duration-150 inline-block" href="{{ url_for('product_edit', pid=p.id) }}">Editar</a>
+          <form method="post" action="{{ url_for('product_delete', pid=p.id) }}" style="display:inline" onsubmit="return confirm('¿Deseas eliminar el producto?')">
+            <button class="px-2 py-1 bg-red-500 text-white rounded text-sm hover:scale-105 cursor-pointer">Eliminar</button>
           </form>
         </td>
       </tr>
