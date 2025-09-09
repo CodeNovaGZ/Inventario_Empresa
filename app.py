@@ -5,7 +5,7 @@ from datetime import datetime
 import os, json
 
 app = Flask(__name__)
-app.secret_key = 'dev-secret'  # simple for prototype
+app.secret_key = 'adm12345*' 
 
 PRODUCTS_FILE = 'products.xlsx'
 ORDERS_FILE = 'orders.xlsx'
@@ -29,14 +29,14 @@ def next_id(path, sheet):
             except: pass
     wb.close(); return max_id + 1
 
-def load_products():
+def load_products(): # Función para cargar los productos registrados
     wb = load_workbook(PRODUCTS_FILE); ws = wb['products']; products = []
     for row in ws.iter_rows(min_row=2, values_only=True):
         if not any(row): continue
         products.append({'id':int(row[0]), 'name':row[1], 'model':row[2], 'color':row[3], 'size':row[4], 'price':float(row[5] or 0), 'stock':int(row[6] or 0), 'created_at':row[7]})
     wb.close(); return products
 
-def save_product(prod):
+def save_product(prod): # Función para guardar un producto (argumento peoducto)
     wb = load_workbook(PRODUCTS_FILE); ws = wb['products']; found=False
     for r in ws.iter_rows(min_row=2):
         if r[0].value == prod.get('id'):
@@ -47,20 +47,20 @@ def save_product(prod):
         nid = prod.get('id') or next_id(PRODUCTS_FILE, 'products'); ws.append([nid, prod.get('name'), prod.get('model'), prod.get('color'), prod.get('size'), prod.get('price'), prod.get('stock'), prod.get('created_at')])
     wb.save(PRODUCTS_FILE); wb.close()
 
-def delete_product(pid):
+def delete_product(pid): # Funcion para eliminar un producto 
     wb = load_workbook(PRODUCTS_FILE); ws = wb['products']; row_to_delete=None
     for idx, r in enumerate(ws.iter_rows(min_row=2), start=2):
         if r[0].value == pid: row_to_delete = idx; break
     if row_to_delete: ws.delete_rows(row_to_delete)
     wb.save(PRODUCTS_FILE); wb.close()
 
-def append_order(order):
+def append_order(order): # Con esto se agregan las órdenes a la lista de pedidos
     wb = load_workbook(ORDERS_FILE); ws = wb['orders']; nid = next_id(ORDERS_FILE, 'orders')
     ws.append([nid, order.get('customer_name'), order.get('address'), order.get('phone'), order.get('items_json'), order.get('total_price'), order.get('created_at')])
     wb.save(ORDERS_FILE); wb.close()
 
 
-def delete_order(oid):
+def delete_order(oid): # Vamos a eliminar la orde  que queramos cuando se marque como completa
     wb = load_workbook(ORDERS_FILE)
     ws = wb['orders']
     row_to_delete = None
@@ -73,31 +73,31 @@ def delete_order(oid):
     wb.save(ORDERS_FILE)
     wb.close()
 
-def load_orders():
+def load_orders(): # Se cargan los pedidos que ya están guardados 
     wb = load_workbook(ORDERS_FILE); ws = wb['orders']; orders=[]
     for row in ws.iter_rows(min_row=2, values_only=True):
         if not any(row): continue
         orders.append({'id':row[0], 'customer_name':row[1], 'address':row[2], 'phone':row[3], 'items':json.loads(row[4] or '[]'), 'total_price':float(row[5] or 0), 'created_at':row[6]})
     wb.close(); return orders
 
-def is_logged_in():
+def is_logged_in(): # Se asigna como valor predeterminado al entrar a la página que no tiene sesión iniciadap
     return session.get('logged_in', False)
 
 @app.route('/login', methods=['GET','POST'])
 def login():
-    # if logged in go to products
+    # Si ya tiene la sesión iniciada, redirige a productos
     if is_logged_in(): return redirect(url_for('products'))
     error = None
     if request.method == 'POST':
-        u = request.form.get('username'); p = request.form.get('password')
-        if u == 'admin' and p == 'admin':
+        u = request.form.get('username'); p = request.form.get('password') # Se obtiene del formulario del login el usuario y la contraseña
+        if u == 'admin' and p == 'admin': # Definimos con qué se puede entrar a la pagina, si no es con ese usuario y contraseña, no entra.
             session['logged_in'] = True
             return redirect(url_for('products'))
         else:
-            error = 'Credenciales inválidas (usa admin / admin)'
-    return render_template('login.html', error=error)
+            error = 'Credenciales inválidas (usa el usuario y contraseña que se encuentra en readme'
+    return render_template('login.html', error=error) 
 
-@app.route('/logout')
+@app.route('/logout') # Esto es para que cuando le demos a logout o cerrar sesión, cierre la sesión y nos lleve a login
 def logout():
     session.clear(); return redirect(url_for('login'))
 
@@ -106,13 +106,13 @@ def root():
     if not is_logged_in(): return redirect(url_for('login'))
     return redirect(url_for('products'))
 
-@app.route('/products')
+@app.route('/products') # Con esto cargamos los productos y los mostramos
 def products():
     if not is_logged_in(): return redirect(url_for('login'))
     products = load_products()
-    return render_template('products.html', products=products)
+    return render_template('products.html', products=products) 
 
-@app.route('/product/new', methods=['GET','POST'])
+@app.route('/product/new', methods=['GET','POST']) # Esta función nos permite crear los productos, solicita nombre, modelo, color, talla, precio, stock, respectivamente, luego lo guarda como prod junto a la hora de creación 
 def product_new():
     if not is_logged_in(): return redirect(url_for('login'))
     if request.method == 'POST':
@@ -122,8 +122,8 @@ def product_new():
         save_product(prod); return redirect(url_for('products'))
     return render_template('product_form.html', product=None)
 
-@app.route('/product/edit/<int:pid>', methods=['GET','POST'])
-def product_edit(pid):
+@app.route('/product/edit/<int:pid>', methods=['GET','POST']) 
+def product_edit(pid): # Si queremos editar un producto, elegimos id del producto y esto nos lleva a la página donde lo podemos modificar 
     if not is_logged_in(): return redirect(url_for('login'))
     products = load_products(); p = next((x for x in products if x['id']==pid), None)
     if not p: flash('Producto no encontrado'); return redirect(url_for('products'))
@@ -134,7 +134,7 @@ def product_edit(pid):
     return render_template('product_form.html', product=p)
 
 @app.route('/product/delete/<int:pid>', methods=['POST'])
-def product_delete(pid):
+def product_delete(pid): # Si queremos eliminar un producto con eso lo borramos de la base de datos con el product id
     if not is_logged_in(): return redirect(url_for('login'))
     delete_product(pid); return redirect(url_for('products'))
 
@@ -144,7 +144,7 @@ def orders():
     orders = load_orders(); return render_template('orders.html', orders=orders)
 
 @app.route('/order/new', methods=['GET','POST'])
-def order_new():
+def order_new(): # Creamos ordenes, solicita el nombre del cliente, dirección, teléfono y producto con su cantidad (Vamos a agregarle fecha de entrega)
     if not is_logged_in(): return redirect(url_for('login'))
     products = load_products()
     if request.method == 'POST':
