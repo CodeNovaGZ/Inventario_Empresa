@@ -2,4 +2,5 @@ orders.xlsx
 products.xlsx
 venv/pyvenv.cfg
 venv
+.venv
 __pycache__

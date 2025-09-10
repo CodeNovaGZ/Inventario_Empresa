@@ -1,11 +1,10 @@
-
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from openpyxl import Workbook, load_workbook
 from datetime import datetime
 import os, json
 
 app = Flask(__name__)
-app.secret_key = 'adm12345*' 
+app.secret_key = 'adm12345*'
 
 PRODUCTS_FILE = 'products.xlsx'
 ORDERS_FILE = 'orders.xlsx'
@@ -13,10 +12,10 @@ ORDERS_FILE = 'orders.xlsx'
 def ensure_files():
     if not os.path.exists(PRODUCTS_FILE): 
         wb = Workbook(); ws = wb.active; ws.title = 'products' 
-        ws.append(['id','name','model','color','size','price','stock','created_at']); wb.save(PRODUCTS_FILE)
+        ws.append(['id','name','model','color','size','price','stock']); wb.save(PRODUCTS_FILE)
     if not os.path.exists(ORDERS_FILE):
         wb = Workbook(); ws = wb.active; ws.title = 'orders'
-        ws.append(['id','customer_name','address','phone','items_json','total_price','created_at']); wb.save(ORDERS_FILE)
+        ws.append(['id','customer_name','address','phone','deadline','items_json','total_price']); wb.save(ORDERS_FILE)
 
 def next_id(path, sheet):
     wb = load_workbook(path); ws = wb[sheet]
@@ -41,10 +40,10 @@ def save_product(prod): # Función para guardar un producto (argumento peoducto)
     for r in ws.iter_rows(min_row=2):
         if r[0].value == prod.get('id'):
             r[1].value = prod.get('name'); r[2].value = prod.get('model'); r[3].value = prod.get('color')
-            r[4].value = prod.get('size'); r[5].value = prod.get('price'); r[6].value = prod.get('stock'); r[7].value = prod.get('created_at')
+            r[4].value = prod.get('size'); r[5].value = prod.get('price'); r[6].value = prod.get('stock')
             found = True; break
     if not found:
-        nid = prod.get('id') or next_id(PRODUCTS_FILE, 'products'); ws.append([nid, prod.get('name'), prod.get('model'), prod.get('color'), prod.get('size'), prod.get('price'), prod.get('stock'), prod.get('created_at')])
+        nid = prod.get('id') or next_id(PRODUCTS_FILE, 'products'); ws.append([nid, prod.get('name'), prod.get('model'), prod.get('color'), prod.get('size'), prod.get('price'), prod.get('stock')])
     wb.save(PRODUCTS_FILE); wb.close()
 
 def delete_product(pid): # Funcion para eliminar un producto 
@@ -56,7 +55,7 @@ def delete_product(pid): # Funcion para eliminar un producto
 
 def append_order(order): # Con esto se agregan las órdenes a la lista de pedidos
     wb = load_workbook(ORDERS_FILE); ws = wb['orders']; nid = next_id(ORDERS_FILE, 'orders')
-    ws.append([nid, order.get('customer_name'), order.get('address'), order.get('phone'), order.get('items_json'), order.get('total_price'), order.get('created_at')])
+    ws.append([nid, order.get('customer_name'), order.get('address'), order.get('phone'), order.get('deadline'), order.get('items_json'), order.get('total_price')])
     wb.save(ORDERS_FILE); wb.close()
 
 
@@ -77,7 +76,7 @@ def load_orders(): # Se cargan los pedidos que ya están guardados
     wb = load_workbook(ORDERS_FILE); ws = wb['orders']; orders=[]
     for row in ws.iter_rows(min_row=2, values_only=True):
         if not any(row): continue
-        orders.append({'id':row[0], 'customer_name':row[1], 'address':row[2], 'phone':row[3], 'items':json.loads(row[4] or '[]'), 'total_price':float(row[5] or 0), 'created_at':row[6]})
+        orders.append({'id':row[0], 'customer_name':row[1], 'address':row[2], 'phone':row[3], 'deadline':row[4], 'items':json.loads(row[5] or '[]'), 'total_price':float(row[6] or 0)})
     wb.close(); return orders
 
 def is_logged_in(): # Se asigna como valor predeterminado al entrar a la página que no tiene sesión iniciadap
@@ -118,7 +117,7 @@ def product_new():
     if request.method == 'POST':
         name = request.form.get('name'); model = request.form.get('model'); color = request.form.get('color')
         size = request.form.get('size'); price = float(request.form.get('price') or 0); stock = int(request.form.get('stock') or 0)
-        prod = {'name': name, 'model': model, 'color': color, 'size': size, 'price': price, 'stock': stock, 'created_at': datetime.utcnow().isoformat()}
+        prod = {'name': name, 'model': model, 'color': color, 'size': size, 'price': price, 'stock': stock}
         save_product(prod); return redirect(url_for('products'))
     return render_template('product_form.html', product=None)
 
@@ -148,7 +147,7 @@ def order_new(): # Creamos ordenes, solicita el nombre del cliente, dirección, 
     if not is_logged_in(): return redirect(url_for('login'))
     products = load_products()
     if request.method == 'POST':
-        customer_name = request.form.get('customer_name'); address = request.form.get('address'); phone = request.form.get('phone')
+        customer_name = request.form.get('customer_name'); address = request.form.get('address'); phone = request.form.get('phone'); deadline = request.form.get('deadline')
         ids = request.form.getlist('product_id'); qtys = request.form.getlist('qty')
         items = []; total = 0.0; prod_map = {p['id']:p for p in products}
         for i,pid_raw in enumerate(ids):
@@ -162,12 +161,10 @@ def order_new(): # Creamos ordenes, solicita el nombre del cliente, dirección, 
             if not pid_raw: continue
             pid = int(pid_raw); qty = int(qtys[i] or 1)
             prod = prod_map.get(pid); prod['stock'] -= qty; save_product(prod)
-            items.append({'id':pid,'name':prod['name'],'qty':qty,'price':prod['price'],'size': prod.get('size'), 'color': prod.get('color')}); total += prod['price'] * qty
-        order = {'customer_name':customer_name,'address':address,'phone':phone,'items_json':json.dumps(items),'total_price':total,'created_at':datetime.utcnow().isoformat()}
+            items.append({'id':pid,'name':prod['name'],'qty':qty,'price':prod['price'],'size': prod.get('size'), 'color': prod.get('color'), 'deadline':prod.get('deadline')}); total += prod['price'] * qty
+        order = {'customer_name':customer_name,'address':address,'phone':phone, 'deadline':deadline, 'items_json':json.dumps(items),'total_price':total}
         append_order(order); return redirect(url_for('orders'))
     return render_template('order_form.html', products=products)
-
-
 
 @app.route('/order/delete/<int:oid>', methods=['POST'])
 def order_delete(oid):
