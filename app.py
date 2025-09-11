@@ -32,7 +32,7 @@ def load_products(): # Función para cargar los productos registrados
     wb = load_workbook(PRODUCTS_FILE); ws = wb['products']; products = []
     for row in ws.iter_rows(min_row=2, values_only=True):
         if not any(row): continue
-        products.append({'id':int(row[0]), 'name':row[1], 'model':row[2], 'color':row[3], 'size':row[4], 'price':float(row[5] or 0), 'stock':int(row[6] or 0), 'created_at':row[7]})
+        products.append({'id':int(row[0]), 'name':row[1], 'model':row[2], 'color':row[3], 'size':row[4], 'price':float(row[5] or 0), 'stock':int(row[6] or 0)})
     wb.close(); return products
 
 def save_product(prod): # Función para guardar un producto (argumento peoducto)
