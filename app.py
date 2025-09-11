@@ -82,6 +82,9 @@ def load_orders(): # Se cargan los pedidos que ya están guardados
 def is_logged_in(): # Se asigna como valor predeterminado al entrar a la página que no tiene sesión iniciadap
     return session.get('logged_in', False)
 
+def format_currency_colombian(amount): # Función para formatear precios en pesos colombianos
+    return f"${amount:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+
 @app.route('/login', methods=['GET','POST'])
 def login():
     # Si ya tiene la sesión iniciada, redirige a productos
@@ -173,6 +176,10 @@ def order_delete(oid):
     delete_order(oid)
     flash('Pedido marcado como completado y eliminado')
     return redirect(url_for('orders'))
+
+@app.context_processor
+def inject_format_currency():
+    return dict(format_currency=format_currency_colombian)
 
 if __name__ == '__main__':
     ensure_files(); app.run(debug=True)
