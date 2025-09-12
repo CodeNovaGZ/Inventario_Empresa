@@ -9,7 +9,7 @@ app.secret_key = 'adm12345*' # Key de Flask, no es algo importante
 PRODUCTS_FILE = 'products.xlsx' # Definimos PRODUCTS_FILE Y ORDERS_FILE para poder llamar los documentos luego en el codigo
 ORDERS_FILE = 'orders.xlsx'
 
-def ensure_files(): # Verificamos que existan los archivos excel que necesitamos, en caso que no estén creados, los nombramos y les ponemos en las columnas las caracteristicas correspondientes.
+def ensure_files(): # Se verifica si estan los archivos excel donde vamos a guardar los productos y los pedidos respectivamente, si no existen, se crean con los nombres de las columnas que vamos a necesitar.
     if not os.path.exists(PRODUCTS_FILE): 
         wb = Workbook(); ws = wb.active; ws.title = 'products' 
         ws.append(['id','name','model','color','size','price','stock']); wb.save(PRODUCTS_FILE)
@@ -102,7 +102,7 @@ def login():
 def logout():
     session.clear(); return redirect(url_for('login'))
 
-@app.route('/') # Establece cuando necesitemos cambiar la ruta a otro html 
+@app.route('/') # Funcion para cuando se quiere redirigir a una parte de la pagina.
 def root():
     if not is_logged_in(): return redirect(url_for('login'))
     return redirect(url_for('products'))
@@ -110,7 +110,7 @@ def root():
 @app.route('/products') # Con esto cargamos los productos y los mostramos
 def products():
     if not is_logged_in(): return redirect(url_for('login'))
-    products = load_products()
+    products = load_products() # Llamamos la funcion de cargar productos como products para usarlo luego.
     return render_template('products.html', products=products) 
 
 @app.route('/product/new', methods=['GET','POST']) # Esta función nos permite crear los productos, solicita nombre, modelo, color, talla, precio, stock, respectivamente, luego lo guarda como prod junto a la hora de creación 
@@ -119,7 +119,7 @@ def product_new():
     if request.method == 'POST':
         name = request.form.get('name'); model = request.form.get('model'); color = request.form.get('color')
         size = request.form.get('size'); price = float(request.form.get('price') or 0); stock = int(request.form.get('stock') or 0)
-        prod = {'name': name, 'model': model, 'color': color, 'size': size, 'price': price, 'stock': stock}
+        prod = {'name': name, 'model': model, 'color': color, 'size': size, 'price': price, 'stock': stock} # Definimos cada variable solicitandolo en el formulario del nuevo producto para luego guardarlo en la base de datos.
         save_product(prod); return redirect(url_for('products'))
     return render_template('product_form.html', product=None)
 
@@ -127,7 +127,7 @@ def product_new():
 def product_edit(pid): # Si queremos editar un producto, elegimos id del producto y esto nos lleva a la página donde lo podemos modificar 
     if not is_logged_in(): return redirect(url_for('login'))
     products = load_products(); p = next((x for x in products if x['id']==pid), None)
-    if not p: flash('Producto no encontrado'); return redirect(url_for('products'))
+    if not p: flash('Producto no encontrado'); return redirect(url_for('products')) # Si uno busca un producto que no existe (id), muestra el mensaje
     if request.method == 'POST':
         p['name'] = request.form.get('name'); p['model'] = request.form.get('model'); p['color'] = request.form.get('color')
         p['size'] = request.form.get('size'); p['price'] = float(request.form.get('price') or 0); p['stock'] = int(request.form.get('stock') or 0)
@@ -142,36 +142,37 @@ def product_delete(pid): # Si queremos eliminar un producto con eso lo borramos 
 @app.route('/orders') # Establece para cuando se necesite redirigir a orders 
 def orders():
     if not is_logged_in(): return redirect(url_for('login'))
-    orders = load_orders(); return render_template('orders.html', orders=orders)
+    orders = load_orders(); return render_template('orders.html', orders=orders) # La funcion orders para cargar los pedidos y llevar al html de pedidos.
 
 @app.route('/order/new', methods=['GET','POST'])
-def order_new(): # Creamos ordenes, solicita el nombre del cliente, dirección, teléfono y producto con su cantidad (Vamos a agregarle fecha de entrega)
+def order_new(): # Creamos ordenes, solicita el nombre del cliente, dirección, teléfono y producto con su cantidad y fecha de entrega.
     if not is_logged_in(): return redirect(url_for('login'))
     products = load_products()
 
     if request.method == 'POST':
         customer_name = request.form.get('customer_name'); address = request.form.get('address'); phone = request.form.get('phone'); deadline = request.form.get('deadline')
         ids = request.form.getlist('product_id'); qtys = request.form.getlist('qty')
-        items = []; total = 0.0; prod_map = {p['id']:p for p in products} # Hace un mapeo de los productos por id
+        items = []; total = 0.0; prod_map = {p['id']:p for p in products} # Acá esta el mapeo con un bucle en products.
+
         for i,pid_raw in enumerate(ids):
             if not pid_raw: continue
-            pid = int(pid_raw); qty = int(qtys[i] or 1)
-            prod = prod_map.get(pid) # Define prod como el producto que se obtiene a partir del pid en el mapeo
+            pid = int(pid_raw); qty = int(qtys[i] or 1) # Definimos pid (id del producto) y Qty (Cantidades)
+            prod = prod_map.get(pid) # hace un mapeo (Revisa cada id en la lista de productos) para conseguir el producto con el pid especifico.
             if not prod: continue
             if prod['stock'] < qty:
-                flash(f'Stock insuficiente para {prod["name"]}, por favor seleccione entre 1 y {prod['stock']}'); return redirect(url_for('order_new'))
+                flash(f'Stock insuficiente para {prod["name"]}, por favor ingrese un número entre 1 y {prod['stock']}'); return redirect(url_for('order_new')) # Si el stock es menos que la cantidad de elementos que se estan pidiendo, devuelve a generar un nuevo pedido, basicamente lo cancela.
 
         for i,pid_raw in enumerate(ids):
             if not pid_raw: continue
             pid = int(pid_raw); qty = int(qtys[i] or 1)
-            prod = prod_map.get(pid); prod['stock'] -= qty; save_product(prod) # Al realizar el pedido de descuenta del stock la cantidad de prendas de cada tipo solicitadas en el pedido y se guardan los cambios.
+            prod = prod_map.get(pid); prod['stock'] -= qty; save_product(prod) # Al crear el pedido se actualiza la cantidad de stock que hay en la base de datos de cada producto solicitado en el pedido y se guarda.
             items.append({'id':pid,'name':prod['name'],'qty':qty,'price':prod['price'],'size': prod.get('size'), 'color': prod.get('color'), 'deadline':prod.get('deadline')}); total += prod['price'] * qty
         order = {'customer_name':customer_name,'address':address,'phone':phone, 'deadline':deadline, 'items_json':json.dumps(items),'total_price':total}
-        append_order(order); return redirect(url_for('orders')) # Se agrega el pediddo con sus detalles a la base de datos.
+        append_order(order); return redirect(url_for('orders')) # Se guarda el pedido y se lleva a la pagina de pedidos.
     return render_template('order_form.html', products=products)
 
 @app.route('/order/delete/<int:oid>', methods=['POST'])
-def order_delete(oid):
+def order_delete(oid):  # Cuando clickeamos el boton de completar pedido muestra el mensaje de la linea 177, y elimina la orden.
     if not is_logged_in():
         return redirect(url_for('login')) # Al marcar como completado un pedido, este es eliminado de la base de datos y muestra un mensaje cuando lo elimina.
     delete_order(oid)
@@ -179,7 +180,7 @@ def order_delete(oid):
     return redirect(url_for('orders'))
 
 @app.context_processor
-def inject_format_currency():
+def inject_format_currency(): # Esta funcion aplcia formato de dinero en pesos colombianos a las secciones donde hayan precios.
     return dict(format_currency=format_currency_colombian)
 
 if __name__ == '__main__':
