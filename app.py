@@ -4,19 +4,19 @@ from datetime import datetime
 import os, json
 
 app = Flask(__name__)
-app.secret_key = 'adm12345*'
-
-PRODUCTS_FILE = 'products.xlsx'
+app.secret_key = 'adm12345*' # Key de Flask, no es algo importante 
+ 
+PRODUCTS_FILE = 'products.xlsx' # Definimos PRODUCTS_FILE Y ORDERS_FILE para poder llamar los documentos luego en el codigo
 ORDERS_FILE = 'orders.xlsx'
 
-def ensure_files():
+def ensure_files(): # Verificamos que existan los archivos excel que necesitamos, en caso que no estén creados, los nombramos y les ponemos en las columnas las caracteristicas correspondientes.
     if not os.path.exists(PRODUCTS_FILE): 
         wb = Workbook(); ws = wb.active; ws.title = 'products' 
         ws.append(['id','name','model','color','size','price','stock']); wb.save(PRODUCTS_FILE)
     if not os.path.exists(ORDERS_FILE):
-        wb = Workbook(); ws = wb.active; ws.title = 'orders'
-        ws.append(['id','customer_name','address','phone','deadline','items_json','total_price']); wb.save(ORDERS_FILE)
-
+        wb = Workbook(); ws = wb.active; ws.title = 'orders' 
+        ws.append(['id','customer_name','address','phone','deadline','items_json','total_price']); wb.save(ORDERS_FILE) # Luego de agregarlas, se guardan 
+ 
 def next_id(path, sheet):
     wb = load_workbook(path); ws = wb[sheet]
     max_id = 0
@@ -50,7 +50,7 @@ def delete_product(pid): # Funcion para eliminar un producto
     wb = load_workbook(PRODUCTS_FILE); ws = wb['products']; row_to_delete=None
     for idx, r in enumerate(ws.iter_rows(min_row=2), start=2):
         if r[0].value == pid: row_to_delete = idx; break
-    if row_to_delete: ws.delete_rows(row_to_delete)
+    if row_to_delete: ws.delete_rows(row_to_delete) # Elimina toda la fila 
     wb.save(PRODUCTS_FILE); wb.close()
 
 def append_order(order): # Con esto se agregan las órdenes a la lista de pedidos
@@ -59,7 +59,7 @@ def append_order(order): # Con esto se agregan las órdenes a la lista de pedido
     wb.save(ORDERS_FILE); wb.close()
 
 
-def delete_order(oid): # Vamos a eliminar la orde  que queramos cuando se marque como completa
+def delete_order(oid): # Vamos a eliminar la orden que queramos cuando se marque como completa
     wb = load_workbook(ORDERS_FILE)
     ws = wb['orders']
     row_to_delete = None
@@ -79,7 +79,7 @@ def load_orders(): # Se cargan los pedidos que ya están guardados
         orders.append({'id':row[0], 'customer_name':row[1], 'address':row[2], 'phone':row[3], 'deadline':row[4], 'items':json.loads(row[5] or '[]'), 'total_price':float(row[6] or 0)})
     wb.close(); return orders
 
-def is_logged_in(): # Se asigna como valor predeterminado al entrar a la página que no tiene sesión iniciadap
+def is_logged_in(): # Se asigna como valor predeterminado al entrar a la página que no tiene sesión iniciada
     return session.get('logged_in', False)
 
 def format_currency_colombian(amount): # Función para formatear precios en pesos colombianos
@@ -87,8 +87,7 @@ def format_currency_colombian(amount): # Función para formatear precios en peso
 
 @app.route('/login', methods=['GET','POST'])
 def login():
-    # Si ya tiene la sesión iniciada, redirige a productos
-    if is_logged_in(): return redirect(url_for('products'))
+    if is_logged_in(): return redirect(url_for('products')) # Si ya tiene la sesión iniciada, redirige a productos
     error = None
     if request.method == 'POST':
         u = request.form.get('username'); p = request.form.get('password') # Se obtiene del formulario del login el usuario y la contraseña
@@ -103,7 +102,7 @@ def login():
 def logout():
     session.clear(); return redirect(url_for('login'))
 
-@app.route('/')
+@app.route('/') # Establece cuando necesitemos cambiar la ruta a otro html 
 def root():
     if not is_logged_in(): return redirect(url_for('login'))
     return redirect(url_for('products'))
@@ -124,7 +123,7 @@ def product_new():
         save_product(prod); return redirect(url_for('products'))
     return render_template('product_form.html', product=None)
 
-@app.route('/product/edit/<int:pid>', methods=['GET','POST']) 
+@app.route('/product/edit/<int:pid>', methods=['GET','POST'])  
 def product_edit(pid): # Si queremos editar un producto, elegimos id del producto y esto nos lleva a la página donde lo podemos modificar 
     if not is_logged_in(): return redirect(url_for('login'))
     products = load_products(); p = next((x for x in products if x['id']==pid), None)
@@ -140,7 +139,7 @@ def product_delete(pid): # Si queremos eliminar un producto con eso lo borramos 
     if not is_logged_in(): return redirect(url_for('login'))
     delete_product(pid); return redirect(url_for('products'))
 
-@app.route('/orders')
+@app.route('/orders') # Establece para cuando se necesite redirigir a orders 
 def orders():
     if not is_logged_in(): return redirect(url_for('login'))
     orders = load_orders(); return render_template('orders.html', orders=orders)
@@ -149,30 +148,32 @@ def orders():
 def order_new(): # Creamos ordenes, solicita el nombre del cliente, dirección, teléfono y producto con su cantidad (Vamos a agregarle fecha de entrega)
     if not is_logged_in(): return redirect(url_for('login'))
     products = load_products()
+
     if request.method == 'POST':
         customer_name = request.form.get('customer_name'); address = request.form.get('address'); phone = request.form.get('phone'); deadline = request.form.get('deadline')
         ids = request.form.getlist('product_id'); qtys = request.form.getlist('qty')
-        items = []; total = 0.0; prod_map = {p['id']:p for p in products}
+        items = []; total = 0.0; prod_map = {p['id']:p for p in products} # Hace un mapeo de los productos por id
         for i,pid_raw in enumerate(ids):
             if not pid_raw: continue
             pid = int(pid_raw); qty = int(qtys[i] or 1)
-            prod = prod_map.get(pid)
+            prod = prod_map.get(pid) # Define prod como el producto que se obtiene a partir del pid en el mapeo
             if not prod: continue
             if prod['stock'] < qty:
-                flash(f'Stock insuficiente para {prod["name"]}'); return redirect(url_for('order_new'))
+                flash(f'Stock insuficiente para {prod["name"]}, por favor seleccione entre 1 y {prod['stock']}'); return redirect(url_for('order_new'))
+
         for i,pid_raw in enumerate(ids):
             if not pid_raw: continue
             pid = int(pid_raw); qty = int(qtys[i] or 1)
-            prod = prod_map.get(pid); prod['stock'] -= qty; save_product(prod)
+            prod = prod_map.get(pid); prod['stock'] -= qty; save_product(prod) # Al realizar el pedido de descuenta del stock la cantidad de prendas de cada tipo solicitadas en el pedido y se guardan los cambios.
             items.append({'id':pid,'name':prod['name'],'qty':qty,'price':prod['price'],'size': prod.get('size'), 'color': prod.get('color'), 'deadline':prod.get('deadline')}); total += prod['price'] * qty
         order = {'customer_name':customer_name,'address':address,'phone':phone, 'deadline':deadline, 'items_json':json.dumps(items),'total_price':total}
-        append_order(order); return redirect(url_for('orders'))
+        append_order(order); return redirect(url_for('orders')) # Se agrega el pediddo con sus detalles a la base de datos.
     return render_template('order_form.html', products=products)
 
 @app.route('/order/delete/<int:oid>', methods=['POST'])
 def order_delete(oid):
     if not is_logged_in():
-        return redirect(url_for('login'))
+        return redirect(url_for('login')) # Al marcar como completado un pedido, este es eliminado de la base de datos y muestra un mensaje cuando lo elimina.
     delete_order(oid)
     flash('Pedido marcado como completado y eliminado')
     return redirect(url_for('orders'))
