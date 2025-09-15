@@ -5,5 +5,5 @@
 > 4. Ejecutar en la terminla pip install -r requirements.txt
 > 5. Luego ejecutar python app.py
 > 6. Abrir https://localhost:5000 o 127.0.0.1:5000 en el navegador.
-
+usuario y contraseña: admin
 ## Esto debe ejecutarse desde un IDE como visual studio code en la terminal.
