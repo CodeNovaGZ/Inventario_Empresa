@@ -1,12 +1,68 @@
-# Instrucciones para ejectuar el código:
-> 1. Se debe tener instalado Python y la terminal Git Bash en el computador.
-> 2. Ejecutar en la terminal: git clone https://github.com/CodeNovaGZ/Inventario_Empresa.git
-> 3. Ejecutar en la terminal: cd Inventario_Empresa
-> 4. Ejecutar en la terminal: python -m venv .venv
-> 5. Ejecutar en la terminal: source .venv/Scripts/activate 
-> 6. Ejecutar en la terminla: pip install -r requirements.txt
-> 7. Ejecutar en la terminal: code .
-> 8. Luego ejecutar: python app.py
-> 9. Abrir https://localhost:5000 o 127.0.0.1:5000 en el navegador.
-> 10. usuario y contraseña: admin
-## Esto debe ejecutarse desde un IDE como visual studio code en la terminal.
+# 🚀 Inventario Empresa
+
+Aplicación de inventario desarrollada en Python y Flask.
+
+---
+
+## 📌 Requisitos previos
+
+- Tener instalado **Python 3**  
+- Tener instalado **Git**  
+- (Opcional) Tener instalado **Visual Studio Code (VS Code)** como IDE recomendado  
+
+---
+
+## ⚙️ Instrucciones de instalación y ejecución
+
+### 🔹 Windows (Git Bash o PowerShell)
+```bash
+git clone https://github.com/CodeNovaGZ/Inventario_Empresa.git
+cd Inventario_Empresa
+python -m venv .venv
+source .venv/Scripts/activate
+pip install -r requirements.txt
+code .
+python app.py
+```
+
+### 🔹 Linux / macOS (Terminal)
+```bash
+git clone https://github.com/CodeNovaGZ/Inventario_Empresa.git
+cd Inventario_Empresa
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+code .
+python3 app.py
+```
+
+---
+
+## 🌐 Acceso a la aplicación
+
+Una vez ejecutado el servidor, abre en tu navegador:  
+- [http://127.0.0.1:5000](http://127.0.0.1:5000)  
+- [http://localhost:5000](http://localhost:5000)  
+
+---
+
+## 🔑 Credenciales iniciales
+
+- **Usuario:** `admin`  
+- **Contraseña:** `admin`  
+
+---
+
+## ℹ️ Notas importantes
+
+- En **Windows** el entorno virtual se activa con:  
+  ```bash
+  source .venv/Scripts/activate
+  ```
+- En **Linux/macOS** el entorno virtual se activa con:  
+  ```bash
+  source .venv/bin/activate
+  ```
+- Si el comando `python` no funciona, prueba con `python3`.  
+
+---
