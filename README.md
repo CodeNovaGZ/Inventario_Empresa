@@ -8,7 +8,7 @@ Aplicación de inventario desarrollada en Python y Flask.
 
 - Tener instalado **Python 3**  
 - Tener instalado **Git**  
-- (Opcional) Tener instalado **Visual Studio Code (VS Code)** como IDE recomendado  
+- Tener instalado **Visual Studio Code (VS Code)** como IDE recomendado
 
 ---
 
